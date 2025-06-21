@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title><%=title || "Christ Love City" %> </title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"> </script>
+    <script src="/scripts/main.js" defer></script>
+<link rel="stylesheet" href="css/style.css" />
+<link rel="icon" href="/favicon.ico" type="image/x-icon" />
+<link href='https://fonts.googleapis.com/css?family=Permanent+Marker:400' rel='stylesheet' type='text/css'>
+<link href='https://fonts.googleapis.com/css?family=Merriweather:700' rel='stylesheet' type='text/css'>
+<link href='https://fonts.googleapis.com/css?family=Merriweather:300italic' rel='stylesheet' type='text/css'>
+
+  </head>
+  <body>
+    <%- include("partials/headers.ejs") %>
+
+<main>
+    <%- body %>
+</main>
+
+<%- include("partials/footer.ejs") %>
+    </body>
+    </html>
