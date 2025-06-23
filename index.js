@@ -1,9 +1,10 @@
 import express from 'express';
 import { fileURLToPath } from 'url';
 import path, {dirname} from 'path';
-
 import ejs from 'ejs';
 import expressLayouts from 'express-ejs-layouts';
+import pool from './config/db.js';
+import router from './gateway/rout.js';
 
 const app =express();
 const PORT=process.env.PORT || 3000;
@@ -17,23 +18,30 @@ app.use(expressLayouts);
 app.set('layout','layout');
 app.use(express.static(path.join(__dirname,'public')));
 
-app.get("/",(req,res)=>{
-    res.render("index.ejs",{title:'Home'});
-})
+app.use("/",router);
+app.use("/rout", router);
 
 
-app.get("/about",(req,res)=>{
-    res.render("about.ejs",{title:'About Us'});
-})
+process.on("SIGINT", async() =>{
+    try{
+        await pool.end();
+        console.log("Database connection closed.");
+        process.exit(0);
+    }catch(err){
+        console.log("Error closing DB:",err);
+        process.exit(1);
+    }
+});
 
-app.get("/contact",(req,res)=>{
-    res.render("contact.ejs",{title:'Contact'});
-
-})
-
-app.get("/minister",(req,res)=>{
-    res.render("minister.ejs",{title:'Our Ministers'});
-})
+process.on("SIGTERM", async () => {
+    try{
+        await pool.end();
+        console.log("Database connection closed,");
+        process.exit(0);
+    }catch(err){
+        console.log("Error closing DB:",err);
+    }
+});
 
 app.listen(PORT, ()=>{
     console.log(`server is running on http://localhost:${PORT}`);

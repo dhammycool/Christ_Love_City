@@ -1,4 +1,9 @@
-   $(document).ready(function(){
+  
+  
+  
+  
+  
+  $(document).ready(function(){
   $(".java_head").click(function(){
     $("#java_sub").slideToggle();
   });
@@ -17,3 +22,5 @@ $(".java_head_two").click(function(){
 $("#java_sub_two").slideToggle();
 });
 });
+
+
