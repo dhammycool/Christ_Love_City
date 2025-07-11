@@ -3,6 +3,8 @@ import pool from '../config/db.js';
 import upload from '../middlewares/uploads.js';
 import bcrypt from 'bcrypt';
 import passport from '../controllers/auths.js';
+import methodOverride from 'method-override';
+import { checkRole } from '../functions/function.js';
 
 const router= express.Router();
 
@@ -25,20 +27,261 @@ router.get("/minister",(req,res)=>{
     res.render("minister.ejs",{title:'Our Ministers'});
 });
 
+router.get("/logout",(req,res)=>{
+  req.logout((err)=>{
+    if(err)return res.status(500).send("Logout failed");
+    res.redirect("/");
+  });
 
+});
 router.get("/login",(req,res)=>{
     res.render("login.ejs",{title:'Login Page'});
 });
 
+router.post('/hq/:id/approve',checkRole([1]), async (req, res) => {
+  const { id } = req.params;
+  const approverId = req.user.id; 
+  const ipAddress = req.ip;
+const userAgent = req.headers['user-agent'];
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    await client.query(
+  `UPDATE church_hqs 
+   SET approved_by_super_user=TRUE, approved_by_user_id=$2, updated_at=NOW()
+   WHERE id=$1`,
+  [id, approverId]
+);
+
+    await client.query(
+      `INSERT INTO audit_logs (user_id, action, description, ip_address, user_agent)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [
+        approverId,
+        'Approve HQ',
+        `Approved HQ with ID ${id}`,
+        ipAddress,
+        userAgent 
+      ]
+    );
+
+    await client.query('COMMIT');
+    res.redirect('/super');
+
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).send("Internal server error");
+  } finally {
+    client.release();
+  }
+});
+
+router.delete('/hq/:id', checkRole([1]), async (req, res) => {
+  const { id } = req.params;
+  const deleteId = req.user.id; 
+  const ipAddress = req.ip;
+  const userAgent = req.headers['user-agent'];
+  try {
+    await pool.query(`DELETE FROM church_hqs WHERE id=$1`, [id]);
+
+    await pool.query(
+      `INSERT INTO audit_logs (user_id, action, description, ip_address, user_agent)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [
+        deleteId,
+        'Deleted HQ',
+        `Deleted HQ with ID ${id}`,
+        ipAddress,
+        userAgent
+      ]
+    );
+
+    res.redirect('/super');
+  } catch (err) {
+    console.log(err);
+    res.status(500).send("internal error");
+  }
+});
+
+
+router.get('/super',checkRole([1]), async (req, res) => {
+  const userName=req.user.full_name;
+  try {
+    const result = await pool.query(`
+      SELECT
+        (SELECT COUNT(*) FROM users) AS total_users,
+        (SELECT COUNT(*) FROM church_hqs) AS total_hqs,
+        (SELECT COUNT(*) FROM church_branches) AS total_branches,
+        (SELECT COUNT(*) FROM users WHERE role_id = (SELECT id FROM roles WHERE name = 'member')) AS total_members;
+    `);
+
+    const approved =await pool.query(`SELECT * FROM church_hqs WHERE approved_by_super_user=FALSE`);
+
+    const counts = result.rows[0];
+
+    res.render('super', {
+      users:counts.total_users,
+      hq:counts.total_hqs,
+      branch:counts.total_branches,
+      members:counts.total_members,
+      approve:approved.rows,
+      Username:userName,
+      title: 'Super_Dashboard'
+    });
+console.log(userName);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Internal error");
+  }
+});
+
+router.post('/settings', checkRole([1]), async (req, res) => {
+  const { name, email, phone, password } = req.body;
+  const userId = req.user.id; 
+
+  try {
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      await pool.query(
+        `UPDATE users SET full_name=$1, email=$2, phone_number=$3, password_hash=$4 WHERE id=$5`,
+        [name, email, phone, hashedPassword, userId]
+      );
+    } else {
+      await pool.query(
+        `UPDATE users SET name=$1, email=$2, phone_number=$3 WHERE id=$4`,
+        [name, email, phone, userId]
+      );
+    }
+    res.redirect('/super');
+  } catch (err) {
+    console.log(err);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+
+router.get('/hq', checkRole([2]), async (req, res) => {
+  const hqId = req.user.hq_id;
+  const name = req.user.full_name;
+
+  try {
+    const query = `
+      SELECT
+        (SELECT COUNT(*) FROM church_branches WHERE hq_id = $1) AS total_branches,
+        (SELECT COUNT(*) FROM users 
+          WHERE role_id = 4 
+          AND branch_id IN (
+            SELECT id FROM church_branches WHERE hq_id = $1
+          )
+        ) AS total_members;
+    `;
+
+    const { rows } = await pool.query(query, [hqId]);
+    const { total_branches, total_members } = rows[0];
+const branches = await pool.query(
+   `SELECT * FROM church_branches WHERE hq_id=$1 AND approved_by_hq_admin=FALSE`,
+  [hqId]
+);
+    const branchList = branches.rows;
+
+    res.render('hq', { total_branches, total_members, name, branchList, title: 'HeadQuarter' });
+
+  } catch (err) {
+    console.log(err);
+    res.status(400).send('internal error');
+  }
+});
+
+router.post('/br/:id/approve', checkRole([2]), async (req, res) => {
+  const { id } = req.params;
+  const approverId = req.user.id; 
+  const ipAddress = req.ip;
+  const userAgent = req.headers['user-agent'];
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const updateResult = await client.query(
+      `UPDATE church_branches 
+       SET approved_by_hq_admin=TRUE, updated_at=NOW()
+       WHERE id=$1`,
+      [id]
+    );
+
+    console.log(updateResult.rowCount, 'rows updated');
+
+    await client.query(
+      `INSERT INTO audit_logs (user_id, action, description, ip_address, user_agent)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [
+        approverId,
+        'Approve Branch',
+        `Approved Branch with ID ${id}`,
+        ipAddress,
+        userAgent 
+      ]
+    );
+
+    await client.query('COMMIT');
+    res.redirect('/hq');
+
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).send("Internal server error");
+  } finally {
+    client.release();
+  }
+});
+
+   
+router.delete('/br/:id', checkRole([2]), async (req, res) => {
+  const { id } = req.params;
+  const deleteId = req.user.id; 
+  const ipAddress = req.ip;
+  const userAgent = req.headers['user-agent'];
+
+  try {
+    await pool.query(`DELETE FROM church_branches WHERE id=$1`, [id]);
+
+    await pool.query(
+      `INSERT INTO audit_logs (user_id, action, description, ip_address, user_agent)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [
+        deleteId,
+        'Deleted Branch',
+        `Deleted Branch with ID ${id}`,
+        ipAddress,
+        userAgent
+      ]
+    );
+
+    res.redirect('/hq');
+  } catch (err) {
+    console.log(err);
+    res.status(500).send("Internal error");
+  }
+});
+
+
+
+router.get('/branches',checkRole([3]), (req, res) => {
+
+  res.render('branches',{title:'Church Branch'});
+
+});
+
+router.get('/members', checkRole([4]), (req, res) => {
+  res.render('members');
+});
 
 router.post('/login', (req, res, next) => {
-  if (req.body.email) {
-    req.body.username = req.body.email;
-  } else if (req.body.Church_Hq_Email) {
-    req.body.username = req.body.Church_Hq_Email;
-  } else if (req.body.branch_email) {
-    req.body.username = req.body.branch_email;
-  }
+  
+  req.body.username = req.body.email || req.body.Church_Hq_Email || req.body.branch_email;
 
   console.log("📝 Login attempt with username:", req.body.username);
 
@@ -47,9 +290,10 @@ router.post('/login', (req, res, next) => {
       console.error("Authentication error:", err);
       return next(err);
     }
+
     if (!user) {
       console.log("Login failed:", info);
-      return res.redirect('/register'); 
+      return res.redirect('/register');
     }
 
     req.logIn(user, (err) => {
@@ -59,18 +303,17 @@ router.post('/login', (req, res, next) => {
       }
 
       console.log("✅ User logged in successfully:", user.email);
-
-  
-      if (user.role_id === 1) { 
-        return res.redirect('/contact');
-      } else if (user.role_id === 2) {
-        return res.redirect('/about');
-      } else if (user.role_id === 3) {
-        return res.redirect('/about');
-      } else if (user.role_id === 4) {
-        return res.redirect('/minister');
-      } else {
-        return res.redirect('/register'); 
+      switch (user.role_id) {
+        case 1:
+          return res.redirect('/super');
+        case 2:
+          return res.redirect('/hq');
+        case 3:
+          return res.redirect('/branches');
+        case 4:
+          return res.redirect('/members');
+        default:
+          return res.redirect('/register');
       }
     });
   })(req, res, next);
@@ -114,6 +357,8 @@ router.get("/register", async(req,res) => {
 
 router.post('/register', upload, async (req, res) => {
   const client = await pool.connect();
+  const ipAddress = req.ip;
+  const userAgent = req.headers['user-agent'];
   
   try {
     await client.query('BEGIN');
@@ -190,8 +435,6 @@ if(age<18){
       );
 
       newHqId = hqInsert.rows[0].id;
-
-      // Insert the admin user
       userResult = await client.query(
         `INSERT INTO users (
           hq_id, role_id, full_name, email, phone_number,
@@ -217,8 +460,6 @@ if(age<18){
         `UPDATE church_hqs SET admin_user_id = $1, updated_at=NOW()  WHERE id = $2`,
         [adminUserId, newHqId]
       );
-
-     // ✅ Insert audit log
       await client.query(
         `INSERT INTO audit_logs (user_id, action, description, ip_address, user_agent)
          VALUES ($1, $2, $3, $4, $5)`,
@@ -226,8 +467,8 @@ if(age<18){
           adminUserId,
           'REGISTER_BRANCH_ADMIN',
           'HQ Admin registered with HQ ID ' + newHqId,
-          process.env.ipAddress,
-          process.env.userAgent
+              ipAddress,
+               userAgent
         ]
       );
 
@@ -245,7 +486,6 @@ if(age<18){
 
       newBranchId = branchInsert.rows[0].id;
 
-      // Insert user
       userResult = await client.query(
         `INSERT INTO users (
           hq_id, branch_id, role_id, full_name, email, phone_number,
@@ -267,7 +507,6 @@ if(age<18){
         ]
       );
 
-           // ✅ Insert audit log
       await client.query(
         `INSERT INTO audit_logs (user_id, action, description, ip_address, user_agent)
          VALUES ($1, $2, $3, $4, $5)`,
@@ -275,19 +514,19 @@ if(age<18){
           userResult.rows[0].id,
           'REGISTER_BRANCH_ADMIN',
           'Branch Admin registered with Branch ID ' + newBranchId,
-           process.env.ipAddress,
-          process.env.userAgent
+             ipAddress,
+             userAgent
         ]
       );
     }
 
-    // 👤 Handle Member
+  
     else if (role === 'member') {
       if (!hq_id_member || !branch_id) {
         throw new Error('HQ and Branch ID are required for members');
       }
 
-      // Insert user
+
      userResult= await client.query( `INSERT INTO users (hq_id, branch_id, role_id, full_name, email, phone_number, password_hash, gender, date_of_birth, profile_photo, bio) 
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)  RETURNING id`,
         [
@@ -305,7 +544,6 @@ if(age<18){
         ]
       );
 
-       // ✅ Insert audit log
       await client.query(
         `INSERT INTO audit_logs (user_id, action, description, ip_address, user_agent)
          VALUES ($1, $2, $3, $4, $5)`,
@@ -313,8 +551,8 @@ if(age<18){
           userResult.rows[0].id,
           'REGISTER_MEMBER',
           'Member registered under HQ ID ' + hq_id_member + ' and Branch ID ' + branch_id,
-          process.env.ipAddress,
-          process.env.userAgent
+            ipAddress,
+            userAgent
         ]
       );
     }

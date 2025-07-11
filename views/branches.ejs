@@ -1,0 +1,102 @@
+
+
+  <div class='headerr'>Branch Admin Dashboard</div>
+  <div class='mainc'>
+
+    <!-- Approve Users -->
+    <section>
+      <h2>Approve Users</h2>
+      <table id="users-table">
+        <thead>
+          <tr><th>Name</th><th>Email</th><th>Action</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Jane Doe</td><td>jane@example.com</td><td><button class="approve-user-btn">Approve</button></td></tr>
+          <tr><td>Mark Twain</td><td>mark@example.com</td><td><button class="approve-user-btn">Approve</button></td></tr>
+    <!-- Couple Registration Form -->
+    <section class="section">
+      <h2>Couple Registration Form</h2>
+      <form id="couple-registration-form">
+        <label for="partner1">Partner 1 Name:</label>
+        <input type="text" id="partner1" required placeholder="Enter Partner 1 name" />
+        <label for="partner2">Partner 2 Name:</label>
+        <input type="text" id="partner2" required placeholder="Enter Partner 2 name" />
+        <label for="appointment-date">Appointment Date:</label>
+        <input type="date" id="appointment-date" required />
+        <label for="hospital">Select Hospital:</label>
+        <select id="hospital" required>
+          <option value="">Select Hospital</option>
+          <option value="hospital1">Hospital 1</option>
+          <option value="hospital2">Hospital 2</option>
+          <option value="hospital3">Hospital 3</option>
+        </select>
+        <button type="submit">Register Couple</button>
+      </form>
+    </section>
+
+    <!-- View Appointments -->
+    <section class="section">
+      <h2>View Appointments</h2>
+      <table id="appointments-table">
+        <thead>
+          <tr>
+            <th>Partner 1</th>
+            <th>Partner 2</th>
+            <th>Hospital</th>
+            <th>Date</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Jane Doe</td>
+            <td>John Smith</td>
+            <td>Hospital 1</td>
+            <td>2025-07-10</td>
+            <td>Pending</td>
+          </tr>
+          <tr>
+            <td>Clara Green</td>
+            <td>David Brown</td>
+            <td>Hospital 2</td>
+            <td>2025-07-15</td>
+            <td>Approved</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Manage Couples -->
+    <section class="section">
+      <h2>Manage Couples</h2>
+      <table id="couples-table">
+        <thead>
+          <tr>
+            <th>Partner 1</th>
+            <th>Partner 2</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Jane Doe</td>
+            <td>John Smith</td>
+            <td>Married</td>
+            <td class="action-buttons">
+              <button class="delete-couple-btn">Delete</button>
+            </td>
+          </tr>
+          <tr>
+            <td>Clara Green</td>
+            <td>David Brown</td>
+            <td>Pending</td>
+            <td class="action-buttons">
+              <button class="approve-marriage-btn">Approve Marriage</button>
+              <button class="delete-couple-btn">Delete</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+</div>

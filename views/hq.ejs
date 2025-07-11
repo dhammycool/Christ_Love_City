@@ -1,0 +1,127 @@
+
+ <!-- HQ Navbar -->
+  <div class="hq-navbar">
+    <h2>HQ Admin Panel</h2>
+    <nav>
+      <a class="hq-nav-link" data-section="hq-dashboard">Dashboard</a>
+      <a class="hq-nav-link" data-section="hq-approvals">Branch Approvals</a>
+      <a class="hq-nav-link" data-section="hq-documents">Documents Center</a>
+      <a class="hq-nav-link" data-section="hq-settings">Settings</a>
+    <a href="/rout/logout">Logout</a>
+    </nav>
+  </div>
+
+  <!-- HQ Main Content -->
+  <div class="hq-main">
+    <!-- Dashboard Section -->
+    <section id="hq-dashboard" class="hq-section">
+      <h1>Welcome <%= name %></h1>
+      <div class="hq-metrics">
+        <div class="hq-card">
+          <h3>Total Branches</h3>
+          <p><%= total_branches %></p>
+        </div>
+        <div class="hq-card">
+          <h3>Total Members</h3>
+          <p><%= total_members %></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Approvals Section -->
+    <section id="hq-approvals" class="hq-section" style="display:none;">
+      <h2>Approve Branch Admins</h2>
+      <% if(branchList && branchList.length > 0){%>
+
+      <table class="hq-table">
+        <thead>
+          <tr>
+            <th>Branch Name</th>
+            <th>Email</th>
+            <th>Moble</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% branchList.forEach(entry => { %>
+          <tr>
+             
+            <td><%= entry.name %></td>
+            <td><%= entry.email %></td>
+            <td><%= entry.phone_number %></td>
+             <td><form action="/rout/br/<%= entry.id %>?_method=DELETE" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this Branch?');">
+  <button type="submit" class="btn btn-delete">Delete</button>
+</form>
+
+<form action="/rout/br/<%= entry.id %>/approve" method="POST" style="display:inline;">
+  <button type="submit" class="btn btn-approve">Approve</button>
+</form>
+
+</td>
+          </tr>
+          <% } )%>
+        </tbody>
+      </table>
+   <%  }else{%>
+   <p> No Pending Approval</p>
+   <% } %> 
+    </section>
+
+    <!-- Documents Center -->
+    <section id="hq-documents" class="hq-section" style="display:none;">
+      <h2>Documents Center</h2>
+      <div class="hq-tabs">
+        <div class="hq-tab active" data-tab="hq-upload">Upload Document</div>
+        <div class="hq-tab" data-tab="hq-inbox">Inbox</div>
+        <div class="hq-tab" data-tab="hq-outbox">Outbox</div>
+      </div>
+
+      <div id="hq-upload" class="hq-tab-content">
+        <form class="hq-form">
+          <label for="recipient-branch">Recipient Branch:</label>
+          <select id="recipient-branch" required>
+            <option value="">Select Branch</option>
+            <option value="branch1">Branch 1</option>
+            <option value="branch2">Branch 2</option>
+          </select>
+
+          <label for="doc-title">Document Title:</label>
+          <input type="text" id="doc-title" placeholder="Title" required />
+
+          <label for="doc-file">Upload File:</label>
+          <input type="file" id="doc-file" required />
+
+          <button type="submit">Send Document</button>
+        </form>
+      </div>
+
+      <div id="hq-inbox" class="hq-tab-content hidden">
+        <p><em>No new documents in inbox.</em></p>
+      </div>
+
+      <div id="hq-outbox" class="hq-tab-content hidden">
+        <p><em>No documents sent yet.</em></p>
+      </div>
+    </section>
+
+    <!-- Settings Section -->
+    <section id="hq-settings" class="hq-section" style="display:none;">
+      <h2>Settings</h2>
+      <form>
+        <label for="hq-password">Change Password:</label>
+        <input type="password" id="hq-password" placeholder="New Password" required />
+
+        <button type="submit">Update</button>
+      </form>
+    </section>
+  </div>
+
+
+
+
+
+
+
+
+
+

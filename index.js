@@ -7,6 +7,7 @@ import expressLayouts from 'express-ejs-layouts';
 import pool from './config/db.js';
 import router from './gateway/rout.js';
 import passport from 'passport';
+import methodOverride from 'method-override';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -19,6 +20,7 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
+app.use(methodOverride('_method'));
 app.use("/uploads", express.static("uploads"));
 app.use(expressLayouts);
 app.set('layout', 'layout');
@@ -38,6 +40,11 @@ app.use(session({
 
 app.use(passport.initialize());
 app.use(passport.session());
+
+app.use((req,res,next)=>{
+  res.locals.user=req.user || null;
+  next();
+});
 
 app.use("/", router);
 app.use("/rout", router);
